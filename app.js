@@ -68,7 +68,7 @@ var speakerMeta={alias:'',gender:'',age_range:'',english_level:'',consent:false,
 var mr=null,as=null,ac=null,an=null,afi=null,rst=0,rti=null;
 var cBlob=null,cRet=0,pa=null,isP=false,mt='',isNoi=false;
 var mainQRef=[];
-var API_BASE_URL=localStorage.getItem('SER_API_BASE_URL')||'http://localhost:3000';
+var API_BASE_URL=getApiBaseUrl();
 var apiSessionId='',apiEnabled=true,apiUploadsOk=0,apiUploadsFail=0,apiFinishDone=false,apiFinishError='';
 
 /* ===== Utilities ===== */
@@ -81,6 +81,16 @@ function getExt(){if(mt.indexOf('mp4')!==-1)return'mp4';if(mt.indexOf('ogg')!==-
 function show(id){var ss=$$('.s');for(var i=0;i<ss.length;i++)ss[i].classList.remove('on');var t=document.getElementById(id);if(!t)return;t.classList.add('on');t.style.animation='none';t.offsetHeight;t.style.animation=''}
 function csv(v){v=v==null?'':String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function getEmotionColor(em){var cs=getComputedStyle(document.documentElement),map={angry:'--an',happy:'--ha',sad:'--sa',neutral:'--nu'};return cs.getPropertyValue(map[em]||'--ac').trim()||'#72c6b2'}
+function getApiBaseUrl(){
+  var saved=localStorage.getItem('SER_API_BASE_URL');
+  var isHosted=location.protocol==='http:'||location.protocol==='https:';
+  var isLocalHost=location.hostname==='localhost'||location.hostname==='127.0.0.1';
+  if(saved){
+    var savedIsLocal=saved.indexOf('localhost')!==-1||saved.indexOf('127.0.0.1')!==-1;
+    if(!(isHosted&&!isLocalHost&&savedIsLocal))return saved.replace(/\/$/,'');
+  }
+  return isHosted?location.origin:'http://localhost:3000';
+}
 
 /* ===== คำนวณ Speaker ID ===== */
 function calcSpId(){var n=parseInt(localStorage.getItem('ser_sp_count')||'0')+1;localStorage.setItem('ser_sp_count',String(n));return'sp'+String(n).padStart(2,'0')}
