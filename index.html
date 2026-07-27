@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SER Data Collection</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="tc"></div>
+
+<div id="eov" class="eov">
+  <p>อารมณ์ถัดไป</p>
+  <div id="ov-b" class="eb"></div>
+  <p id="ov-h" style="font-size:0.8rem;color:var(--f3);max-width:260px;text-align:center;line-height:1.5"></p>
+</div>
+
+<section id="s1" class="s on">
+  <div class="ww">
+    <div class="ww-ico"><i class="fas fa-microphone-lines"></i></div>
+    <h1>SER Data Collection</h1>
+    <p class="ww-sub">เก็บเสียงคนไทยพูดภาษาอังกฤษเพื่อประเมินโมเดลจดจำอารมณ์จากเสียง</p>
+    <p class="ww-desc">4 อารมณ์ · 56 คลิป/คน · ใช้เวลาประมาณ 30-35 นาที</p>
+
+    <div class="eg">
+      <div class="egi"><div class="dot angry"></div><span>Angry</span></div>
+      <div class="egi"><div class="dot happy"></div><span>Happy</span></div>
+      <div class="egi"><div class="dot sad"></div><span>Sad</span></div>
+      <div class="egi"><div class="dot neutral"></div><span>Neutral</span></div>
+    </div>
+
+    <button class="b b1 bl" id="btn-start">ถัดไป</button>
+  </div>
+</section>
+
+<section id="s-info" class="s">
+  <div class="ww setup">
+    <div class="step-head">
+      <span>1 / 2</span>
+      <h2>ข้อมูลผู้พูด</h2>
+      <p>ใช้เพื่อวิเคราะห์ผลตามกลุ่มผู้เรียนเท่านั้น ไม่ต้องระบุชื่อจริง</p>
+    </div>
+
+    <div class="form-card" aria-label="ข้อมูลผู้พูด">
+      <label class="fg">
+        <span class="fl">ชื่อเล่น / Alias</span>
+        <input id="u-alias" class="fi" type="text" placeholder="เช่น Nan หรือไม่กรอกก็ได้" autocomplete="off">
+      </label>
+
+      <div class="fr">
+        <label class="fg">
+          <span class="fl">เพศ</span>
+          <select id="u-gender" class="fs">
+            <option value="">เลือก</option>
+            <option value="female">หญิง</option>
+            <option value="male">ชาย</option>
+            <option value="other">อื่น ๆ</option>
+            <option value="prefer_not_to_say">ไม่ต้องการระบุ</option>
+          </select>
+        </label>
+        <label class="fg">
+          <span class="fl">ช่วงอายุ</span>
+          <select id="u-age" class="fs">
+            <option value="">เลือก</option>
+            <option value="under_18">ต่ำกว่า 18</option>
+            <option value="18-25">18-25</option>
+            <option value="26-35">26-35</option>
+            <option value="36-45">36-45</option>
+            <option value="46+">46+</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="fg">
+        <span class="fl">ระดับภาษาอังกฤษโดยประมาณ</span>
+        <select id="u-english" class="fs">
+          <option value="">เลือก</option>
+          <option value="A1">A1 - เริ่มต้น</option>
+          <option value="A2">A2 - พื้นฐาน</option>
+          <option value="B1">B1 - กลาง</option>
+          <option value="B2">B2 - กลาง-ดี</option>
+          <option value="C1">C1 - ดี</option>
+          <option value="C2">C2 - เชี่ยวชาญ</option>
+          <option value="unknown">ไม่แน่ใจ</option>
+        </select>
+      </label>
+
+      <label class="consent">
+        <input id="u-consent" type="checkbox">
+        <span>ยินยอมให้ใช้เสียงและ metadata แบบไม่ระบุตัวตน เพื่อการวิจัย พัฒนา และทดสอบระบบวิเคราะห์อารมณ์จากเสียง</span>
+      </label>
+    </div>
+
+    <div class="screen-actions">
+      <button class="b b2" id="btn-info-back">ย้อนกลับ</button>
+      <button class="b b1" id="btn-info-next">ถัดไป</button>
+    </div>
+  </div>
+</section>
+
+<section id="s-inst" class="s">
+  <div class="ww setup">
+    <div class="step-head">
+      <span>2 / 2</span>
+      <h2>คำแนะนำก่อนอัด</h2>
+      <p>ทำตามนี้เพื่อให้เสียงนำไปประเมินโมเดลได้จริง</p>
+    </div>
+
+    <div class="guide">
+      <div><span>1</span> อัดในที่เงียบ ถือไมค์ห่างปากประมาณ 20-30 ซม.</div>
+      <div><span>2</span> พูดให้เป็นธรรมชาติ ไม่ต้องแสดงเกินจริง</div>
+      <div><span>3</span> 1 ประโยค = 1 คลิป สามารถฟังทวนและอัดใหม่ได้</div>
+      <div><span>4</span> อย่าปิดหน้านี้ระหว่างอัด เพราะข้อมูลยังอยู่ในเบราว์เซอร์</div>
+    </div>
+
+    <div class="screen-actions">
+      <button class="b b2" id="btn-inst-back">ย้อนกลับ</button>
+      <button class="b b1" id="btn-record-start">เริ่มอัดเสียง</button>
+    </div>
+  </div>
+</section>
+
+<section id="s2" class="s">
+  <div class="rw">
+    <div class="psg" id="p-seg"></div>
+    <div class="plb" id="p-lbl"></div>
+    <div class="rh">
+      <span id="r-st" class="rst"></span>
+      <span id="r-nt" class="rnt" style="display:none">Noisy</span>
+    </div>
+    <div id="s-card" class="sc">
+      <span id="s-tag" class="sc-tag"></span>
+      <div id="s-eb" style="margin-bottom:14px"></div>
+      <p id="s-en" class="sc-en"></p>
+      <p id="s-th" class="sc-th"></p>
+    </div>
+    <div class="wv" id="w-ar">
+      <canvas id="w-cv"></canvas>
+      <div id="w-ph" class="wv-ph"><i class="fas fa-wave-square"></i> กดปุ่มอัดเพื่อเริ่ม</div>
+    </div>
+    <div id="r-tm" class="rtm">0.0s</div>
+    <div class="rc-wrap">
+      <div id="c-idle"><button class="btn-rec" id="btn-rec"><i class="fas fa-microphone"></i></button></div>
+      <div id="c-rec" style="display:none"><button class="btn-stp" id="btn-stop"><i class="fas fa-stop"></i></button></div>
+      <div id="c-done" style="display:none">
+        <div class="done-row">
+          <button class="btn-pl" id="btn-play"><i class="fas fa-play"></i></button>
+          <span id="p-tm" class="pt">0:00 / 0:00</span>
+        </div>
+        <div class="done-btns">
+          <button class="b b2 bs" id="btn-re"><i class="fas fa-rotate-right"></i> อัดใหม่</button>
+          <button class="b b1 bs" id="btn-ok">ถัดไป <i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </div>
+    <div id="r-tip" class="tip"><i class="fas fa-lightbulb"></i><span id="r-tt"></span></div>
+    <div id="n-up" class="nxt">ถัดไป: <span id="n-ut"></span></div>
+  </div>
+</section>
+
+<section id="s3" class="s">
+  <div class="nc-w">
+    <h2>อัดในที่มีเสียงรบกวน</h2>
+    <p>ย้ายไปที่มีเสียงรบกวน แล้วเลือก 4-5 ประโยคที่จะอัดซ้ำ</p>
+    <div id="n-ct" class="ncc">เลือกแล้ว: 0 / 5</div>
+    <div id="n-ls" class="ncl"></div>
+    <div style="display:flex;gap:10px">
+      <button class="b b2" style="flex:1" id="btn-skip">ข้าม</button>
+      <button class="b b1" style="flex:2" id="btn-noi" disabled>เริ่มอัดเสียงรบกวน</button>
+    </div>
+  </div>
+</section>
+
+<section id="s4" class="s">
+  <div class="sm-w">
+    <h2>สรุปผล</h2>
+    <div id="st-g" class="sg"></div>
+    <div id="rec-ls" class="rl"></div>
+    <div class="ea">
+      <button class="b b1 bl" id="btn-exp"><i class="fas fa-download"></i> ดาวน์โหลดทั้งหมด (ZIP)</button>
+      <p class="en">ZIP ประกอบด้วยไฟล์เสียง + speakers.csv + labels.csv</p>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
