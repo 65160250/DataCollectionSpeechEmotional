@@ -136,10 +136,13 @@ function renderProg(){
   $('#p-seg').innerHTML=sh;$('#p-lbl').innerHTML=lh;
 }
 function render(){
-  if(qi>=queue.length){show('s3');renderNoi();return}
+  if(qi>=queue.length){
+    if(isNoi){goSum();return}
+    show('s3');renderNoi();return
+  }
   var it=queue[qi],em=it.emotion,pt=it.part,s=it.sentence;
   renderProg();
-  if(isNoi){$('#r-st').textContent='Noisy '+(qi+1)+' / '+queue.length;$('#r-nt').style.display=''}
+  if(isNoi){$('#r-st').textContent='Noisy round '+(qi+1)+' / '+queue.length;$('#r-nt').style.display=''}
   else{$('#r-st').textContent='Part '+pt+' \u00B7 '+ETH[em]+' \u00B7 '+(qi+1)+'/'+queue.length;$('#r-nt').style.display='none'}
   var card=$('#s-card');card.className='sc '+em;
   $('#s-tag').textContent=it.cond==='noisy'?'NOISY':pt+' \u00B7 '+s.id;
@@ -151,9 +154,17 @@ function render(){
   if(pt==='A')tip='\u0E1B\u0E23\u0E30\u0E42\u0E22\u0E04\u0E19\u0E35\u0E49\u0E44\u0E21\u0E48\u0E1A\u0E2D\u0E01\u0E2D\u0E32\u0E23\u0E21\u0E13\u0E4C \u2014 \u0E43\u0E0A\u0E49\u0E19\u0E49\u0E33\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E2A\u0E37\u0E48\u0E2D "'+ETH[em]+'" \u0E17\u0E31\u0E49\u0E07\u0E2B\u0E21\u0E14';
   else if(pt==='B')tip=EHINT[em];
   else tip='\u0E1E\u0E39\u0E14\u0E15\u0E48\u0E2D\u0E40\u0E19\u0E37\u0E48\u0E2D\u0E07\u0E40\u0E1B\u0E47\u0E19\u0E40\u0E23\u0E37\u0E48\u0E2D\u0E07 \u00B7 '+EHINT[em];
-  if(it.cond==='noisy')tip='\u0E2D\u0E31\u0E14\u0E43\u0E19\u0E17\u0E35\u0E48\u0E21\u0E35\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E23\u0E1A\u0E01\u0E27\u0E19 \u2014 '+tip;
+  if(it.cond==='noisy')tip='คลิปเสียงรบกวน '+(qi+1)+' จาก '+queue.length+' — '+tip;
   $('#r-tt').textContent=tip;
-  if(qi+1<queue.length){$('#n-up').style='';var nx=queue[qi+1].sentence.en;$('#n-ut').textContent='"'+nx.substring(0,45)+(nx.length>45?'...':'')+'"'}else{$('#n-up').style.display='none'}
+  if(qi+1<queue.length){
+    $('#n-up').style='';
+    var nx=queue[qi+1].sentence.en;
+    $('#n-ut').textContent=(isNoi?'Noisy '+(qi+2)+'/'+queue.length+': ':'"')+nx.substring(0,45)+(nx.length>45?'...':'')+(isNoi?'':'"')
+  }else{
+    $('#n-up').style='';
+    $('#n-ut').textContent=isNoi?'คลิปสุดท้ายแล้ว หลังจากนี้จะไปหน้าสรุป':''
+    if(!isNoi)$('#n-up').style.display='none'
+  }
 }
 function setS(s){rs=s;$('#c-idle').style.display=s==='idle'?'':'none';$('#c-rec').style.display=s==='recording'?'':'none';$('#c-done').style.display=s==='recorded'?'':'none'}
 
@@ -207,7 +218,7 @@ function renderNoi(){
   for(i=0;i<sugs.length;i++){(function(idx){var s=sugs[idx],d=document.createElement('div');d.className='nci sel';d.dataset.qi=idxs[idx];d.innerHTML='<input type="checkbox" checked><div class="nci-t">"'+s.sentence.en.substring(0,50)+(s.sentence.en.length>50?'...':'')+'"</div><div class="nci-m"><span class="eb '+s.emotion+'" style="font-size:0.64rem;padding:2px 7px">'+s.emotion+'</span></div>';d.addEventListener('click',function(e){if(e.target.tagName==='INPUT')return;var cb=d.querySelector('input');cb.checked=!cb.checked;d.classList.toggle('sel',cb.checked);updNC()});d.querySelector('input').addEventListener('change',function(){d.classList.toggle('sel',d.querySelector('input').checked);updNC()});ls.appendChild(d)})(i)}
   updNC();
 }
-function updNC(){var c=document.querySelectorAll('.nci input:checked').length;$('#n-ct').textContent='เลือกแล้ว: '+c+' / 5';$('#btn-noi').disabled=c===0}
+function updNC(){var c=document.querySelectorAll('.nci input:checked').length;$('#n-ct').textContent='เลือกแล้ว: '+c+' / 5 คลิป';$('#btn-noi').textContent=c>0?'เริ่มอัด '+c+' คลิปเสียงรบกวน':'เริ่มอัดเสียงรบกวน';$('#btn-noi').disabled=c===0}
 function startNoi(){
   var si=[],items=document.querySelectorAll('.nci input:checked'),i;
   for(i=0;i<items.length;i++)si.push(parseInt(items[i].closest('.nci').dataset.qi));
