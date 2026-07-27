@@ -58,10 +58,14 @@ export async function POST(request: Request) {
   ].join("/");
 
   const arrayBuffer = await file.arrayBuffer();
+  // ⚠️ ตัด parameter ";codecs=opus" ออกก่อนส่งเข้า Supabase Storage
+  // เพราะ bucket allowed_mime_types เก็บเป็น base type ("audio/webm") ไม่รวม codecs
+  // MediaRecorder ส่ง "audio/webm;codecs=opus" มา -> Storage reject -> upload 500
+  const storageContentType = (file.type.split(";")[0].trim() || "application/octet-stream");
   const { error: uploadError } = await supabaseAdmin.storage
     .from(config.recordingsBucket)
     .upload(storagePath, Buffer.from(arrayBuffer), {
-      contentType: file.type,
+      contentType: storageContentType,
       upsert: false
     });
 

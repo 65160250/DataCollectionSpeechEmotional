@@ -65,7 +65,7 @@ values (
   'ser-recordings',
   false,
   10485760,
-  array['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/wave', 'audio/x-wav']
+  array['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/wav', 'audio/wave', 'audio/x-wav']
 )
 on conflict (id) do update
 set
