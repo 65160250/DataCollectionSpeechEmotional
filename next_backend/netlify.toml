@@ -1,0 +1,6 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_RECORDINGS_BUCKET,ALLOWED_AUDIO_MIME_TYPES,MAX_AUDIO_BYTES,NEXT_PUBLIC_APP_ORIGIN"
