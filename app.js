@@ -68,6 +68,8 @@ var speakerMeta={alias:'',gender:'',age_range:'',english_level:'',consent:false,
 var mr=null,as=null,ac=null,an=null,afi=null,rst=0,rti=null;
 var cBlob=null,cRet=0,pa=null,isP=false,mt='',isNoi=false;
 var mainQRef=[];
+var API_BASE_URL=localStorage.getItem('SER_API_BASE_URL')||'http://localhost:3000';
+var apiSessionId='',apiEnabled=true,apiUploadsOk=0,apiUploadsFail=0,apiFinishDone=false,apiFinishError='';
 
 /* ===== Utilities ===== */
 function $(s){return document.querySelector(s)}
@@ -78,9 +80,54 @@ function getMT(){var t=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio
 function getExt(){if(mt.indexOf('mp4')!==-1)return'mp4';if(mt.indexOf('ogg')!==-1)return'ogg';return'webm'}
 function show(id){var ss=$$('.s');for(var i=0;i<ss.length;i++)ss[i].classList.remove('on');var t=document.getElementById(id);if(!t)return;t.classList.add('on');t.style.animation='none';t.offsetHeight;t.style.animation=''}
 function csv(v){v=v==null?'':String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function getEmotionColor(em){var cs=getComputedStyle(document.documentElement),map={angry:'--an',happy:'--ha',sad:'--sa',neutral:'--nu'};return cs.getPropertyValue(map[em]||'--ac').trim()||'#72c6b2'}
 
 /* ===== คำนวณ Speaker ID ===== */
 function calcSpId(){var n=parseInt(localStorage.getItem('ser_sp_count')||'0')+1;localStorage.setItem('ser_sp_count',String(n));return'sp'+String(n).padStart(2,'0')}
+
+/* ===== Backend API ===== */
+function apiJson(path,body){
+  return fetch(API_BASE_URL+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(res){return res.json().then(function(data){if(!res.ok)throw new Error(data.error||'API error');return data})})
+}
+function startBackendSession(){
+  return apiJson('/api/sessions/start',{
+    alias:speakerMeta.alias,
+    gender:speakerMeta.gender,
+    age_range:speakerMeta.age_range,
+    english_level:speakerMeta.english_level,
+    consent_research:speakerMeta.consent,
+    consent_commercial:speakerMeta.consent,
+    dataset_role:'eval_only'
+  }).then(function(data){
+    spId=data.participant_id;
+    apiSessionId=data.session_id;
+    speakerMeta.participant_id_source='server_generated';
+    return data;
+  })
+}
+function uploadRecording(rec){
+  if(!apiEnabled||!apiSessionId)return Promise.resolve(null);
+  var fd=new FormData();
+  fd.append('audio',rec.blob,rec.filename);
+  fd.append('metadata',JSON.stringify({
+    session_id:apiSessionId,
+    participant_id:spId,
+    emotion:rec.emotion,
+    part:rec.part,
+    sentence_id:rec.sentence_id,
+    sentence_text:rec.sentence_text,
+    condition:rec.condition,
+    take:rec.take,
+    duration_sec:rec.duration,
+    retakes:rec.retakes,
+    recorded_at_utc:rec.timestamp
+  }));
+  return fetch(API_BASE_URL+'/api/recordings/upload',{method:'POST',body:fd}).then(function(res){return res.json().then(function(data){if(!res.ok)throw new Error(data.error||'Upload failed');rec.uploaded=true;rec.recording_id=data.recording_id;rec.storage_path=data.storage_path;apiUploadsOk++;return data})}).catch(function(err){rec.uploaded=false;rec.upload_error=err.message;apiUploadsFail++;toast('อัปโหลดคลิปนี้ไม่สำเร็จ เก็บไว้ใน ZIP สำรอง');return null})
+}
+function finishBackendSession(){
+  if(!apiEnabled||!apiSessionId||apiFinishDone)return Promise.resolve(null);
+  return apiJson('/api/sessions/finish',{session_id:apiSessionId,participant_id:spId,client_recording_count:recs.length}).then(function(data){apiFinishDone=true;apiFinishError='';return data}).catch(function(err){apiFinishError=err.message;toast('ปิด session ไม่สำเร็จ ใช้ ZIP สำรองได้');return null})
+}
 
 /* ===== ข้อมูลผู้พูด ===== */
 function collectSpeakerMeta(){
@@ -116,14 +163,17 @@ function buildQ(){
 
 /* ===== เริ่มต้น ===== */
 function goRec(){
-  spId=calcSpId();mt=getMT();
+  mt=getMT();
+  toast('กำลังเริ่ม session...');
+  startBackendSession().then(function(){
   if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
     navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
       as=stream;ac=new(window.AudioContext||window.webkitAudioContext)();an=ac.createAnalyser();an.fftSize=2048;ac.createMediaStreamSource(stream).connect(an);startSession();
     }).catch(function(){as=null;startSession()});
   }else{as=null;startSession()}
+  }).catch(function(err){toast('เชื่อม backend ไม่สำเร็จ: '+err.message)})
 }
-function startSession(){queue=buildQ();mainQRef=queue.slice();qi=0;recs=[];isNoi=false;show('s2');render()}
+function startSession(){queue=buildQ();mainQRef=queue.slice();qi=0;recs=[];isNoi=false;apiUploadsOk=0;apiUploadsFail=0;apiFinishDone=false;apiFinishError='';show('s2');render()}
 
 /* ===== แสดงผล ===== */
 function renderProg(){
@@ -182,9 +232,9 @@ function onDone(){var dur=(Date.now()-rst)/1000;setS('recorded');$('#p-tm').text
 function updTm(){var el=(Date.now()-rst)/1000;$('#r-tm').textContent=el.toFixed(1)+'s';var it=queue[qi];if(!it)return;var w,o;if(it.part==='A'){w=4;o=6}else if(it.part==='B'){w=7;o=10}else{w=15;o=20}$('#r-tm').className='rtm'+(el>o?' over':el>w?' warn':'')}
 
 /* ===== Waveform ===== */
-function drawWF(){if(!an)return;var cv=$('#w-cv'),r=cv.parentElement.getBoundingClientRect();cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio;var cx=cv.getContext('2d');cx.scale(devicePixelRatio,devicePixelRatio);var w=r.width,h=r.height,it=queue[qi],cs=getComputedStyle(document.documentElement),ec=cs.getPropertyValue('--'+it.emotion).trim(),bl=an.fftSize,da=new Uint8Array(bl);(function draw(){an.getByteTimeDomainData(da);cx.clearRect(0,0,w,h);cx.strokeStyle='rgba(255,255,255,0.03)';cx.lineWidth=1;cx.beginPath();cx.moveTo(0,h/2);cx.lineTo(w,h/2);cx.stroke();cx.lineWidth=1.5;cx.strokeStyle=ec;cx.shadowColor=ec;cx.shadowBlur=4;cx.beginPath();var sw=w/bl,x=0;for(var i=0;i<bl;i++){var y=da[i]/128*h/2;if(i===0)cx.moveTo(x,y);else cx.lineTo(x,y);x+=sw}cx.lineTo(w,h/2);cx.stroke();cx.shadowBlur=0;afi=requestAnimationFrame(draw)})()}
+function drawWF(){if(!an)return;var cv=$('#w-cv'),r=cv.parentElement.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=Math.max(1,r.width*dpr);cv.height=Math.max(1,r.height*dpr);var cx=cv.getContext('2d');cx.setTransform(dpr,0,0,dpr,0,0);var w=r.width,h=r.height,it=queue[qi],ec=getEmotionColor(it.emotion),bl=an.fftSize,da=new Uint8Array(bl);(function draw(){an.getByteTimeDomainData(da);cx.clearRect(0,0,w,h);cx.fillStyle='rgba(255,255,255,.72)';cx.fillRect(0,0,w,h);cx.strokeStyle='rgba(100,116,139,.18)';cx.lineWidth=1;cx.beginPath();cx.moveTo(0,h/2);cx.lineTo(w,h/2);cx.stroke();cx.lineWidth=2.4;cx.strokeStyle=ec;cx.shadowColor=ec;cx.shadowBlur=8;cx.beginPath();var step=Math.max(1,Math.floor(bl/w)),x=0;for(var i=0;i<bl;i+=step){var v=(da[i]-128)/128;var y=h/2+v*h*.42;if(x===0)cx.moveTo(x,y);else cx.lineTo(x,y);x+=1}cx.stroke();cx.shadowBlur=0;afi=requestAnimationFrame(draw)})()}
 function stopWF(){if(afi){cancelAnimationFrame(afi);afi=null}}
-function drawSWF(){var cv=$('#w-cv'),r=cv.parentElement.getBoundingClientRect();cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio;var cx=cv.getContext('2d');cx.scale(devicePixelRatio,devicePixelRatio);var w=r.width,h=r.height,it=queue[qi],cs=getComputedStyle(document.documentElement),ec=cs.getPropertyValue('--'+it.emotion).trim();cx.strokeStyle=ec;cx.lineWidth=1.5;cx.globalAlpha=0.35;cx.beginPath();cx.moveTo(0,h/2);var sd=it.sentence.id.charCodeAt(1)*137;for(var x=0;x<w;x++){cx.lineTo(x,h/2+Math.sin(x/w*20+sd)*7*Math.sin(x/w*Math.PI))}cx.stroke();cx.globalAlpha=1}
+function drawSWF(){var cv=$('#w-cv'),r=cv.parentElement.getBoundingClientRect(),dpr=window.devicePixelRatio||1;cv.width=Math.max(1,r.width*dpr);cv.height=Math.max(1,r.height*dpr);var cx=cv.getContext('2d');cx.setTransform(dpr,0,0,dpr,0,0);var w=r.width,h=r.height,it=queue[qi],ec=getEmotionColor(it.emotion);cx.clearRect(0,0,w,h);cx.fillStyle='rgba(255,255,255,.72)';cx.fillRect(0,0,w,h);cx.strokeStyle=ec;cx.lineWidth=2;cx.globalAlpha=0.45;cx.beginPath();cx.moveTo(0,h/2);var sd=it.sentence.id.charCodeAt(1)*137;for(var x=0;x<w;x++){cx.lineTo(x,h/2+Math.sin(x/w*20+sd)*9*Math.sin(x/w*Math.PI))}cx.stroke();cx.globalAlpha=1}
 
 /* ===== Playback ===== */
 function togPlay(){if(isP)stopPl();else startPl()}
@@ -195,9 +245,13 @@ function stopPl(){if(pa){pa.pause();pa.currentTime=0;pa=null}isP=false;$('#btn-p
 function reRec(){stopPl();cRet++;startR()}
 function acceptR(){
   if(!cBlob)return;stopPl();var it=queue[qi],ext=getExt(),fn=spId+'_'+it.emotion+'_'+it.sentence.id+'_1'+(it.cond==='noisy'?'_noisy':'')+'.'+ext;
-  recs.push({filename:fn,blob:cBlob,speaker_id:spId,emotion:it.emotion,part:it.part,sentence_id:it.sentence.id,sentence_text:it.sentence.en,condition:it.cond,take:1,retakes:cRet,duration:(Date.now()-rst)/1000,timestamp:new Date().toISOString()});
-  if(!isNoi&&qi+1<queue.length){var ce=it.emotion,ne=queue[qi+1].emotion,cp=it.part,np=queue[qi+1].part;if((cp===np&&ce!==ne)||cp!==np){showEmo(ne,function(){qi++;render()});return}}
-  qi++;render();
+  var rec={filename:fn,blob:cBlob,speaker_id:spId,emotion:it.emotion,part:it.part,sentence_id:it.sentence.id,sentence_text:it.sentence.en,condition:it.cond,take:1,retakes:cRet,duration:(Date.now()-rst)/1000,timestamp:new Date().toISOString(),uploaded:false};
+  recs.push(rec);$('#btn-ok').disabled=true;$('#btn-ok').innerHTML='<i class="fas fa-spinner fa-spin"></i> กำลังส่ง';
+  uploadRecording(rec).then(function(){
+    $('#btn-ok').disabled=false;$('#btn-ok').innerHTML='ถัดไป <i class="fas fa-arrow-right"></i>';
+    if(!isNoi&&qi+1<queue.length){var ce=it.emotion,ne=queue[qi+1].emotion,cp=it.part,np=queue[qi+1].part;if((cp===np&&ce!==ne)||cp!==np){showEmo(ne,function(){qi++;render()});return}}
+    qi++;render();
+  })
 }
 
 /* ===== Emotion Transition ===== */
@@ -228,14 +282,14 @@ function startNoi(){
 }
 
 /* ===== Summary ===== */
-function goSum(){show('s4');renderSum()}
+function goSum(){show('s4');renderSum();finishBackendSession().then(renderSum)}
 function renderSum(){
   var tot=recs.length,be={},bp={},nc=0,td=0,i,r,ext=getExt();
   for(i=0;i<EM.length;i++)be[EM[i]]=0;bp['A']=0;bp['B']=0;bp['C']=0;
   for(i=0;i<recs.length;i++){r=recs[i];be[r.emotion]++;bp[r.part]++;if(r.condition==='noisy')nc++;td+=r.duration}
-  $('#st-g').innerHTML='<div class="stc"><div class="stn" style="color:var(--ac)">'+tot+'</div><div class="stl">Total</div></div><div class="stc"><div class="stn" style="color:var(--an)">'+be.angry+'</div><div class="stl">Angry</div></div><div class="stc"><div class="stn" style="color:var(--ha)">'+be.happy+'</div><div class="stl">Happy</div></div><div class="stc"><div class="stn" style="color:var(--sa)">'+be.sad+'</div><div class="stl">Sad</div></div><div class="stc"><div class="stn" style="color:var(--nu)">'+be.neutral+'</div><div class="stl">Neutral</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+nc+'</div><div class="stl">Noisy</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+ft(td)+'</div><div class="stl">Duration</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+ext.toUpperCase()+'</div><div class="stl">Format</div></div>';
+  $('#st-g').innerHTML='<div class="stc"><div class="stn" style="color:var(--ac)">'+tot+'</div><div class="stl">Total</div></div><div class="stc"><div class="stn" style="color:var(--ac)">'+apiUploadsOk+'</div><div class="stl">Uploaded</div></div><div class="stc"><div class="stn" style="color:var(--an)">'+apiUploadsFail+'</div><div class="stl">Failed</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+(apiFinishDone?'Done':'Open')+'</div><div class="stl">Session</div></div><div class="stc"><div class="stn" style="color:var(--an)">'+be.angry+'</div><div class="stl">Angry</div></div><div class="stc"><div class="stn" style="color:var(--ha)">'+be.happy+'</div><div class="stl">Happy</div></div><div class="stc"><div class="stn" style="color:var(--sa)">'+be.sad+'</div><div class="stl">Sad</div></div><div class="stc"><div class="stn" style="color:var(--nu)">'+be.neutral+'</div><div class="stl">Neutral</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+nc+'</div><div class="stl">Noisy</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+ft(td)+'</div><div class="stl">Duration</div></div><div class="stc"><div class="stn" style="color:var(--f2)">'+ext.toUpperCase()+'</div><div class="stl">Format</div></div>';
   var ls=$('#rec-ls');ls.innerHTML='';
-  for(i=0;i<recs.length;i++){(function(idx){r=recs[idx];var d=document.createElement('div');d.className='rli';d.innerHTML='<div class="dot '+r.emotion+'"></div><div class="rf">'+r.filename+'</div><span class="rd">'+r.duration.toFixed(1)+'s</span><button data-i="'+idx+'"><i class="fas fa-xmark"></i></button>';d.querySelector('button').addEventListener('click',function(e){e.stopPropagation();recs.splice(idx,1);renderSum()});ls.appendChild(d)})(i)}
+  for(i=0;i<recs.length;i++){(function(idx){r=recs[idx];var up=r.uploaded?'uploaded':(r.upload_error?'failed':'pending');var d=document.createElement('div');d.className='rli';d.innerHTML='<div class="dot '+r.emotion+'"></div><div class="rf">'+r.filename+'</div><span class="rd">'+up+' · '+r.duration.toFixed(1)+'s</span><button data-i="'+idx+'"><i class="fas fa-xmark"></i></button>';d.querySelector('button').addEventListener('click',function(e){e.stopPropagation();recs.splice(idx,1);renderSum()});ls.appendChild(d)})(i)}
 }
 
 /* ===== Export ZIP ===== */

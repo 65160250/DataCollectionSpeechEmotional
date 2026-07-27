@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/responses";
+import { fail, ok, options } from "@/lib/responses";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { finishSessionSchema } from "@/lib/validation";
 
@@ -43,4 +43,8 @@ export async function POST(request: Request) {
     recording_count: count || 0,
     status: "completed"
   });
+}
+
+export async function OPTIONS() {
+  return options();
 }

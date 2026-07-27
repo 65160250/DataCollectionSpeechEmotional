@@ -1,5 +1,5 @@
 import { createParticipantId, createSessionId } from "@/lib/ids";
-import { fail, ok } from "@/lib/responses";
+import { fail, ok, options } from "@/lib/responses";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { speakerSchema } from "@/lib/validation";
 
@@ -56,4 +56,8 @@ export async function POST(request: Request) {
     },
     201
   );
+}
+
+export async function OPTIONS() {
+  return options();
 }

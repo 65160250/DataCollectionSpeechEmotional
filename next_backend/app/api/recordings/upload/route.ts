@@ -1,6 +1,6 @@
 import { config } from "@/lib/config";
 import { safeFilePart } from "@/lib/ids";
-import { fail, ok } from "@/lib/responses";
+import { fail, ok, options } from "@/lib/responses";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { recordingMetaSchema } from "@/lib/validation";
 
@@ -103,6 +103,10 @@ export async function POST(request: Request) {
     },
     201
   );
+}
+
+export async function OPTIONS() {
+  return options();
 }
 
 function extensionFromMime(mimeType: string) {

@@ -1,4 +1,4 @@
-import { ok } from "@/lib/responses";
+import { ok, options } from "@/lib/responses";
 
 export const runtime = "nodejs";
 
@@ -8,4 +8,8 @@ export async function GET() {
     service: "ser-recorder-backend",
     time: new Date().toISOString()
   });
+}
+
+export async function OPTIONS() {
+  return options();
 }
